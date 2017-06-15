@@ -1,0 +1,26 @@
+{
+  "name": "csv2mt940",
+  "version": "1.0.0",
+  "description": "A bank statement converter from csv to mt940 for ErotonEP",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron ."
+  },
+  "repository": "https://github.com/mocheje/csv2mt940.git",
+  "keywords": [
+    "Bank Statement",
+    "mt940",
+    "converter",
+    "csv",
+    "bank reconcilliation"
+  ],
+  "author": "Michael Ocheje",
+  "license": "ISC",
+  "devDependencies": {
+    "electron": "~1.6.2"
+  },
+  "dependencies": {
+    "moment": "^2.18.1",
+    "node-xlsx": "^0.7.4"
+  }
+}

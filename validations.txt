@@ -1,0 +1,7 @@
+currency validation,
+nuban/account Number validation
+opening and closing balance validation individual PRESENCE
+opening and closing balance validation MATCH
+all transation legs validation D/C and not both or empty
+document validation
+transaction date validation

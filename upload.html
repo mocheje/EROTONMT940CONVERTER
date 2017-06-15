@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Eroton CSV to MT940 converter</title>
+<link rel="stylesheet" href="css/main.css" />
+<link rel="stylesheet" href="css/styles.css" />
+</head>
+<body>
+<section id="intro" class="main style1 dark fullscreen">
+<div class="content container 75%">
+<input type="button" id="btn-read-file-input" value="select a csv bank statement to convert">
+<div id="file-upload">
+    <p>Drop your Xlsx bank statement here</p>
+    <p id="path"></p>
+</div>
+<div id="myProgress">
+    <div id="myBar"></div>
+</div>
+</div>
+</section>
+</body>
+
+    <script>
+        //all conversion for single account
+
+        //require dialogue for open file and save file dialogue
+        const {dialog} = require('electron').remote;
+        //require file system to read files
+        const fs = require('fs');
+        //require node xlsx
+        const xlsx = require('node-xlsx');
+        // require moment for date time processing
+        const moment = require('moment');
+        //hold selected file path in variable path
+        let path;
+        //based on selected bank, choose initialString. TODO // use defualt now and check back later
+        const {initialString} = require('./config/institution').general;
+        //hold derived statement as test in variable statement
+        let statement ='';
+
+        document.getElementById("btn-read-file-input").addEventListener("click", () => {
+        dialog.showOpenDialog((FileNames) => {
+            if(FileNames === undefined){
+                console.log("no files were selected");
+                return;
+            }
+            path = FileNames[0];
+            document.getElementById('path').innerHTML = FileNames[0];
+            //set progress bar visibilit
+            const pbar = document.getElementById('myProgress');
+            pbar.style.visibility = 'visible';
+            processFile(path);
+        })
+        }, false);
+
+
+        const holder = document.getElementById('file-upload');
+
+        holder.ondragover = () => {
+            holder.style.background = "rgba(0,0,0,0.5)";
+            return false;
+        };
+
+        holder.ondragleave = () => {
+            holder.style.background = "";
+            return false;
+        };
+
+        holder.ondragend = () => {
+            return false;
+        };
+
+        holder.ondrop = (e) => {
+            e.preventDefault();
+
+            for (let f of e.dataTransfer.files) {
+                document.getElementById('path').innerHTML = f.path;
+                path = f.path;
+                processFile(path);
+                //set progress bar visibilit
+                const pbar = document.getElementById('myProgress');
+                pbar.style.visibility = 'visible';
+            }
+
+            return false;
+        };
+
+        function processFile(filename) {
+            try{
+                progress(1, 'Reading and parsing document');   //initial progress when reading and parsing file
+                var obj = xlsx.parse(fs.readFileSync(filename));
+                var numOfRecords = obj[0].data.length;
+                var data = obj[0].data;
+                console.log(data);
+                //validate data to check if file uploaded is valid bank statement
+                //determine bank format to adopt
+
+                progress(20, 'Document parsed Validating Document');  //parsed document
+                //get account currency
+                const currency = data[9][3];
+                if(typeof(currency) === 'string' && currency.length === 3) {
+                   // TODO //show on the UI that currency validation is passed
+                    console.log('currency validation passed', currency);
+                }
+
+                // get opening balance
+                const openingBalance = data[11][1];
+                if(typeof(openingBalance) === 'number'){
+                  console.log('opening balance validation passed', openingBalance)
+                }
+
+                //get closing balance
+                const closingBalance = data[11][3];
+                if(typeof(closingBalance) === 'number'){
+                    console.log('closing balance validation passed', closingBalance)
+                }
+
+                //get Effective available balance
+                const closingAvailableBalance = data[12][3];
+                if(typeof(closingBalance) === 'number'){
+                    console.log('closing balance validation passed', closingBalance)
+                }
+
+                //get first transaction date as oppening balance date
+                const firstTransactionDateExcel = data[18][0];
+                const firstTransactionDate = moment(getJsDateFromExcel(firstTransactionDateExcel)).format('YYMMDD');
+                console.log('logging mt940 first transaction date as ', firstTransactionDate);
+                //validate first transaction date
+                if(typeof(firstTransactionDate === 'number')){
+                    console.log('first transaction date validation passed as ', firstTransactionDate)
+                }
+
+                //get last transaction date as closing balance date
+                const lastTransactionDateExcel = data[data.length - 10][0];
+                const lastTransactionDate = moment(getJsDateFromExcel(lastTransactionDateExcel)).format('YYMMDD');
+                console.log('logging mt940 last transaction date as ', lastTransactionDate);
+                //validate last transaction date
+                if(typeof(lastTransactionDate === 'number')){
+                    console.log('last transaction date validation passed as ', lastTransactionDate)
+                }
+
+                //get transaction reference :20: 16x
+                const ref = getTransactionReference();
+                statement += `:20:${ref}\n`;
+
+
+                //get Tag 25 – Account Identification 35x
+                //Nuban/Alternate account number always on array position [8][1]
+                const nuban = data[8][1] ;
+                console.log(nuban);
+                const accountNumber = generateAccount(nuban);
+                //add account number to mt940 statement
+                statement += `:25:${accountNumber}\n`;
+
+                //generate Tag 28C – Statement Number/Sequence Number
+                const statementNumber = generateStatementNumber();
+                statement += `:28C:${statementNumber}\n`;
+
+
+                //generate Tag 60a – Opening Balance whether its a depit or a credit
+                //60F ‐ initial opening balance
+                const openingBalanceTag = getBalance(openingBalance, firstTransactionDate, currency);
+                statement += `:60F:${openingBalanceTag}\n`;
+
+                //generate statement line and information to owner
+                //TODO change the loop based on selected banks file format
+                for(let i = 18; i < data.length - 9; i++){
+                    let current = 20 + (i / data.length - 9) * 100; // show progress after 20% during iteration
+                    progress(current, 'Processing individual transaction line');
+                    //generate tag 61 Account statement
+                    const line = generateStementLine(data[i], currency);
+                    statement += `:61:${line}\n`;
+
+                    //generate tag 86 for transaction description
+                    const description = data[i][3];
+                    statement += `:86:${description}\n`;
+                }
+
+                // if closing balance matches populate tag 62 TODO check the validation
+                //Tag 62a – Closing Balance (Booked Funds)
+
+                const closingBalanceTag = getBalance(closingBalance, lastTransactionDate, currency);
+                statement += `:62F:${closingBalanceTag}\n`;
+
+
+                // get Tag 64 – Closing Available Balance (Available Funds)
+                const closingAvailableBalanceTag = getBalance(closingAvailableBalance, lastTransactionDate, currency);
+                statement += `:64:${closingAvailableBalanceTag}\n`;
+
+
+                //replace *** in statement with actual mt940 codes
+                if(initialString){
+                    const output = initialString.replace('***', statement);
+                    console.log(output);
+                    progress(100, 'Completed');
+                    saveFile(output);
+                    statement = ''; // reset statement for other file processing since statement is a global variable
+                    return
+                } else {
+                    console.log('error getting selected banks header');
+                }
+
+            } catch (e){
+                console.log(e);
+            }
+        };
+
+        /**
+         *
+         * @param number
+         * @return {date} javascript date
+         *
+         */
+
+        function getJsDateFromExcel(excelDate) {
+            console.log('logging js date as ', excelDate);
+            // JavaScript dates can be constructed by passing milliseconds
+            // since the Unix epoch (January 1, 1970) example: new Date(12312512312);
+            // 1. Subtract number of days between Jan 1, 1900 and Jan 1, 1970, plus 1 (Google "excel leap year bug")
+            // 2. Convert to milliseconds.
+            return new Date((excelDate - (25567 + 2))*86400*1000);
+
+        }
+
+        /**
+         * @param
+         * @return {date} formatted as YYMMDD
+         *
+         *
+         */
+
+        function getTransactionReference() {
+            //process Tag 20 – Transaction Reference Number 16x (6!n10!n)
+            //! means exactly n means numbers and 6/10 is length
+            let mstime = String(new Date().getTime());
+            return `${moment().format('YYMMDD')}${mstime.substring(3,13)}`;// get last 10 strings from unix time
+        }
+
+        /**
+         * @param number
+         * @return {string}
+         *
+         */
+
+        function generateAccount(nubNo) {
+            console.log(typeof(nubNo));
+            if(nubNo && nubNo.length >= 10){
+                return nubNo;
+            } else {
+                if(!nubNo) return '0';
+                let zeros = '';
+                //append leading zeros to nuban/alternate account number
+                for(let i=0; i < 10 - String(nubNo).length; i++ ){
+                    zeros += '0';
+                }
+                return `${zeros}${nubNo}`;
+            }
+        }
+
+        /**
+         * Function to generate sequence number or return next sequence number if sequence number is passed
+         * @param number
+         * @returns {string}
+         */
+        function generateStatementNumber(number){
+            if(number){
+                const spl = number.split('/');
+                const Number = Number(spl[1]) + 1;
+                const nextSequence = spl[0] + '/' + String(Number);
+                return nextSequence;
+            } else {
+                return `${Math.floor(Math.random()*89999+10000)}/001`;
+            }
+
+        }
+        /**
+         * get opening balance for tag 60
+         * @param balance {Number} e.t 87222090.09
+         * @param strDate {string} e.g '170601'
+         * @param currency e.g 'NGN' 'USD'
+         */
+        function getBalance(balance, balanceDate, currency){
+            //generate Tag 60a – Opening Balance whether its a depit or a credit
+            //60F ‐ initial opening balance
+            //60M ‐ intermediate opening balance
+            //1 Credit/Debit mark M 1!a C = Credit, D = Debit
+            //2 Statement Date M 6!n Format: YYMMDD
+            //3 Currency M 3!a ISO Currency Code
+            //4 Amount M 15d Opening Balance with a comma as a decimal point,
+            //    ending zeroes are not shown
+            if(balance && balanceDate && currency){
+                const sign = balance > 0 ? 'C' : 'D';
+                const newBalance = String(balance).replace('.', ',');
+                return `${sign}${balanceDate}${currency}${newBalance}`
+
+            } else {
+                return '#error'
+            }
+        }
+
+
+        /**
+         *
+         * @param arr statement line
+         *
+         */
+        function generateStementLine(arr, currency){
+            //Statement Line O This record is produced for each transaction in the
+            //account statement
+            //1 Value Date M 6!n Format: YYMMDD
+            //2 Credit/Debit Mark M 1!a C = Credit, D = Debit
+            //3 Amount M 15d Transaction amount with a comma as the decimal point, ending zeroes are not shown
+            //4 Transaction Type Identification Code M 1!a3!c N or F
+            //5 Transaction Number M 16n Bank’s internal reference number
+            //6 Bank reference M //16x Bank’s internal reference number
+            //7 Supplementary Details M CrL f[34x] Bank’s additional info in a new line
+
+//            0:"Tran Date"
+//            1:"Value Date"
+//            2:"Cheque No"
+//            3:"Description"
+//            4:"Transaction Ref. No"
+//            5:"Withdrawal"
+//            6:"Deposit"
+//            7:"Balance"
+            // first check if array length is > 4 since at least 4 fields will be populated to show a valid transaction
+            let sign, amount;
+            const tranDate = moment(getJsDateFromExcel(arr[0])).format('YYMMDD');
+            const valueDate = moment(getJsDateFromExcel(arr[1])).format('MMDD');
+            const lastCurrL = currency.substring(2,3);
+            if(arr[6]){ //deposit
+                sign = 'C';
+                amount = String(arr[6]).replace('.', ',');
+                //add amount to total credit for validation
+            } else if(arr[5]){
+                sign = 'D';
+                amount = String(arr[5]).replace('.', ',');
+                //deduct amount from total credit for validation
+            } else {
+                sign = '';
+                amount = ''
+            }
+            const transactionType = mapDescriptionToSwiftTCodes(arr[3]);
+            const customerReference = 'ONREF'; //no reference specified in template
+            const bankReference = arr[4];
+
+            return `${tranDate}${valueDate}${sign}${lastCurrL}${amount}${transactionType}${customerReference}//${bankReference}`;
+
+        }
+
+        function mapDescriptionToSwiftTCodes(description){
+            if(description.toUpperCase().includes('TRANSFER')){
+                return 'NTRF'
+            } else {
+                return 'NCLR'
+            }
+        }
+
+        function saveFile(content){
+
+// You can obviously give a direct path without use the dialog (C:/Program Files/path/myfileexample.txt)
+            dialog.showSaveDialog((fileName) => {
+                if (fileName === undefined){
+                    console.log("You didn't save the file");
+                    return;
+                }
+
+                // fileName is a string that contains the path and filename created in the save file dialog.
+                fs.writeFile(fileName, content, (err) => {
+                    if(err){
+                        alert("An error ocurred creating the file "+ err.message)
+                    }
+
+                    alert("The file has been succesfully saved");
+                });
+            });
+        }
+
+        function progress(width, text) {
+            const elem = document.getElementById("myBar");
+            elem.style.width = width + '%';
+            elem.innerHTML = width * 1  + '%' + text;
+        }
+
+    </script>
+</html>
