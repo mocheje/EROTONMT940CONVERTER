@@ -1,5 +1,5 @@
 {
-  "name": "erotonMt940Converter",
+  "name": "EROTONMT940CONVERTER",
   "version": "1.0.0",
   "description": "A bank statement converter from xlsx to mt940 for ErotonEP",
   "main": "main.js",
