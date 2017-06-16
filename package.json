@@ -7,7 +7,7 @@
     "start": "electron .",
     "clean": "rimraf dist",
     "package:windows": "electron-packager ./ EROTONMT940CONVERTER --platform win32 --arch x64 --out dist --overwrite",
-    "setup:windows": "electron-installer-windows --src dist/EROTONMT940CONVERTER-win32-x64/ --dest dist/installers/",
+    "setup:windows": "electron-installer-windows --src dist/EROTONMT940CONVERTER-win32-x64/ --config config.json",
     "build:windows": "npm run clean && npm run package:windows && npm run setup:windows"
   },
   "homepage": "https://github.com/mocheje/csv2mt940.git",
