@@ -1,6 +1,6 @@
 {
   "dest": "dist/installers/",
-  "icon": "app_icon.png",
+  "icon": "app_icon.ico",
   "tags": [
     "Utility"
   ]
