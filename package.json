@@ -6,10 +6,11 @@
   "scripts": {
     "start": "electron .",
     "clean": "rimraf dist",
-    "build": "electron-packager . app --platform win32 --arch x64 --out dist/",
-    "setup": "electron-installer-windows --src dist/app-win32-x64/ --config config.json",
-    "final": "npm run clean && npm run build && npm run setup"
+    "package:windows": "electron-packager ./ EROTONMT940CONVERTER --platform win32 --arch x64 --out dist --overwrite",
+    "setup:windows": "electron-installer-windows --src dist/EROTONMT940CONVERTER-win32-x64/ --dest dist/installers/",
+    "build:windows": "npm run clean && npm run package:windows && npm run setup:windows"
   },
+  "homepage": "https://github.com/mocheje/csv2mt940.git",
   "repository": "https://github.com/mocheje/csv2mt940.git",
   "keywords": [
     "Bank Statement",
