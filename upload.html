@@ -5,20 +5,24 @@
 <title>Eroton CSV to MT940 converter</title>
 <link rel="stylesheet" href="css/main.css" />
 <link rel="stylesheet" href="css/styles.css" />
+<link rel="stylesheet" type="text/css" href="css/sweetalert.css" />
+<script src="js/sweetalert.min.js"></script>
 </head>
 <body>
-<section id="intro" class="main style1 dark fullscreen">
-<div class="content container 75%">
-<input type="button" id="btn-read-file-input" value="select a csv bank statement to convert">
-<div id="file-upload">
-    <p>Drop your Xlsx bank statement here</p>
-    <p id="path"></p>
-</div>
-<div id="myProgress">
-    <div id="myBar"></div>
-</div>
-</div>
-</section>
+    <section id="intro" class="main style1 dark fullscreen">
+        <div class="content container 75%">
+            <input type="button" id="btn-read-file-input" value="select a csv bank statement to convert">
+            <p></p><div id="ErotonINTRO2">OR</div><p></p>
+            <div id="file-upload">
+                <p>Drop your Xlsx bank statement here</p>
+                <p id="path"></p>
+            </div>
+            <div id="process-button">
+                <input type="button" id="startProcessing" value="Start Conversion">
+            </div>
+        </div>
+    </section>
+
 </body>
 
     <script>
@@ -42,17 +46,27 @@
         document.getElementById("btn-read-file-input").addEventListener("click", () => {
         dialog.showOpenDialog((FileNames) => {
             if(FileNames === undefined){
-                console.log("no files were selected");
+                swal('Nothing Selected', 'No files were selected', 'info');
                 return;
             }
             path = FileNames[0];
             document.getElementById('path').innerHTML = FileNames[0];
-            //set progress bar visibilit
-            const pbar = document.getElementById('myProgress');
-            pbar.style.visibility = 'visible';
-            processFile(path);
+            showProcessButon();
         })
         }, false);
+
+        //event when processing button is clicked
+        document.getElementById('startProcessing').addEventListener("click", () => {
+          if(path) {
+              processFile(path);
+              //clear used variables
+              document.getElementById('process-button').style.visibility = 'hidden';
+              path = '';
+              document.getElementById('path').innerHTML = '';
+          } else {
+              swal('No File', 'Nofile Selected', 'error');
+          }
+        });
 
 
         const holder = document.getElementById('file-upload');
@@ -77,10 +91,7 @@
             for (let f of e.dataTransfer.files) {
                 document.getElementById('path').innerHTML = f.path;
                 path = f.path;
-                processFile(path);
-                //set progress bar visibilit
-                const pbar = document.getElementById('myProgress');
-                pbar.style.visibility = 'visible';
+                showProcessButon();
             }
 
             return false;
@@ -88,56 +99,65 @@
 
         function processFile(filename) {
             try{
-                progress(1, 'Reading and parsing document');   //initial progress when reading and parsing file
                 var obj = xlsx.parse(fs.readFileSync(filename));
+                if(!obj.length){
+                    swal('error', 'File failed validation checks', 'error');
+                    return
+                }
                 var numOfRecords = obj[0].data.length;
                 var data = obj[0].data;
-                console.log(data);
+                if(!data.length){
+                    swal('error', 'File failed validation checks', 'error');
+                    return
+                }
                 //validate data to check if file uploaded is valid bank statement
                 //determine bank format to adopt
 
-                progress(20, 'Document parsed Validating Document');  //parsed document
                 //get account currency
                 const currency = data[9][3];
-                if(typeof(currency) === 'string' && currency.length === 3) {
+                if(!(typeof(currency) === 'string' && currency.length === 3)) {
                    // TODO //show on the UI that currency validation is passed
-                    console.log('currency validation passed', currency);
+                    swal('error', 'Currency Validaton failed', 'error');
+                    return
                 }
 
                 // get opening balance
                 const openingBalance = data[11][1];
-                if(typeof(openingBalance) === 'number'){
-                  console.log('opening balance validation passed', openingBalance)
+                if(!typeof(openingBalance) === 'number'){
+                    swal('error', 'Opening balance validation failed', 'error');
+                    return
                 }
 
                 //get closing balance
                 const closingBalance = data[11][3];
-                if(typeof(closingBalance) === 'number'){
-                    console.log('closing balance validation passed', closingBalance)
+                if(!typeof(closingBalance) === 'number'){
+                    swal('error', 'closing balance validation failed', 'error');
+                    return
                 }
 
                 //get Effective available balance
                 const closingAvailableBalance = data[12][3];
-                if(typeof(closingBalance) === 'number'){
-                    console.log('closing balance validation passed', closingBalance)
+                if(!typeof(closingBalance) === 'number'){
+                    swal('error', 'Closing available balance validation failed', 'error');
+                    return
                 }
 
                 //get first transaction date as oppening balance date
                 const firstTransactionDateExcel = data[18][0];
                 const firstTransactionDate = moment(getJsDateFromExcel(firstTransactionDateExcel)).format('YYMMDD');
-                console.log('logging mt940 first transaction date as ', firstTransactionDate);
                 //validate first transaction date
-                if(typeof(firstTransactionDate === 'number')){
-                    console.log('first transaction date validation passed as ', firstTransactionDate)
+                if(!typeof(firstTransactionDate === 'number')){
+                    swal('error', 'First transaction date validation failed', 'error');
+                    return
                 }
 
                 //get last transaction date as closing balance date
                 const lastTransactionDateExcel = data[data.length - 10][0];
                 const lastTransactionDate = moment(getJsDateFromExcel(lastTransactionDateExcel)).format('YYMMDD');
-                console.log('logging mt940 last transaction date as ', lastTransactionDate);
                 //validate last transaction date
-                if(typeof(lastTransactionDate === 'number')){
-                    console.log('last transaction date validation passed as ', lastTransactionDate)
+                if(!typeof(lastTransactionDate === 'number')){
+                    swal('error', 'last transaction date validation failed', 'error');
+                    return
                 }
 
                 //get transaction reference :20: 16x
@@ -148,7 +168,6 @@
                 //get Tag 25 – Account Identification 35x
                 //Nuban/Alternate account number always on array position [8][1]
                 const nuban = data[8][1] ;
-                console.log(nuban);
                 const accountNumber = generateAccount(nuban);
                 //add account number to mt940 statement
                 statement += `:25:${accountNumber}\n`;
@@ -166,8 +185,6 @@
                 //generate statement line and information to owner
                 //TODO change the loop based on selected banks file format
                 for(let i = 18; i < data.length - 9; i++){
-                    let current = 20 + (i / data.length - 9) * 100; // show progress after 20% during iteration
-                    progress(current, 'Processing individual transaction line');
                     //generate tag 61 Account statement
                     const line = generateStementLine(data[i], currency);
                     statement += `:61:${line}\n`;
@@ -192,9 +209,27 @@
                 //replace *** in statement with actual mt940 codes
                 if(initialString){
                     const output = initialString.replace('***', statement);
-                    console.log(output);
-                    progress(100, 'Completed');
-                    saveFile(output);
+                    swal({
+                            title: "Select Output File?",
+                            text: "Please Select output directory/output file name!",
+                            type: "warning",
+                            showCancelButton: true,
+                            confirmButtonColor: "#DD6B55",
+                            confirmButtonText: "Save File",
+                            cancelButtonText: "Cancel Processing!",
+                            closeOnConfirm: false,
+                            closeOnCancel: false
+                        },
+                        function(isConfirm){
+                            if (isConfirm) {
+                                saveFile(output);
+                                //hide process button and clear dom file path
+                                document.getElementById('path').innerHTML = '';
+                                document.getElementById('process-button').style.visibility = "hidden"
+                            } else {
+                                swal("File not saved", "error");
+                            }
+                        });
                     statement = ''; // reset statement for other file processing since statement is a global variable
                     return
                 } else {
@@ -202,7 +237,7 @@
                 }
 
             } catch (e){
-                console.log(e);
+                swal('File Error', 'File not supported', 'error');
             }
         };
 
@@ -358,7 +393,6 @@
         }
 
         function saveFile(content){
-
 // You can obviously give a direct path without use the dialog (C:/Program Files/path/myfileexample.txt)
             dialog.showSaveDialog((fileName) => {
                 if (fileName === undefined){
@@ -369,18 +403,17 @@
                 // fileName is a string that contains the path and filename created in the save file dialog.
                 fs.writeFile(fileName, content, (err) => {
                     if(err){
-                        alert("An error ocurred creating the file "+ err.message)
+                        swal("Error", "An error ocurred creating the file "+ err.message, "error");
                     }
 
-                    alert("The file has been succesfully saved");
+                    swal("Good job!", "File Succesfully saved!", "success")
                 });
             });
         }
 
-        function progress(width, text) {
-            const elem = document.getElementById("myBar");
-            elem.style.width = width + '%';
-            elem.innerHTML = width * 1  + '%' + text;
+        function showProcessButon(){
+            const doc = document.getElementById('process-button');
+            doc.style.visibility = 'visible';
         }
 
     </script>

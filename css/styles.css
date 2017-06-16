@@ -39,3 +39,8 @@
     height: 30px;
     background-color: green;
 }
+
+#process-button {
+    width: 100%;
+    visibility: hidden;
+}
