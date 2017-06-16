@@ -1,10 +1,14 @@
 {
-  "name": "csv2mt940",
+  "name": "erotonMt940Converter",
   "version": "1.0.0",
-  "description": "A bank statement converter from csv to mt940 for ErotonEP",
+  "description": "A bank statement converter from xlsx to mt940 for ErotonEP",
   "main": "main.js",
   "scripts": {
-    "start": "electron ."
+    "start": "electron .",
+    "clean": "rimraf dist",
+    "build": "electron-packager . app --platform win32 --arch x64 --out dist/",
+    "setup": "electron-installer-windows --src dist/app-win32-x64/ --config config.json",
+    "final": "npm run clean && npm run build && npm run setup"
   },
   "repository": "https://github.com/mocheje/csv2mt940.git",
   "keywords": [
@@ -17,7 +21,8 @@
   "author": "Michael Ocheje",
   "license": "ISC",
   "devDependencies": {
-    "electron": "~1.6.2"
+    "electron": "~1.6.2",
+    "electron-installer-windows": "^0.2.0"
   },
   "dependencies": {
     "moment": "^2.18.1",

@@ -43,4 +43,5 @@
 #process-button {
     width: 100%;
     visibility: hidden;
+    margin-top: 40px;
 }

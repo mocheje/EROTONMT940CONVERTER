@@ -151,15 +151,6 @@
                     return
                 }
 
-                //get last transaction date as closing balance date
-                const lastTransactionDateExcel = data[data.length - 10][0];
-                const lastTransactionDate = moment(getJsDateFromExcel(lastTransactionDateExcel)).format('YYMMDD');
-                //validate last transaction date
-                if(!typeof(lastTransactionDate === 'number')){
-                    swal('error', 'last transaction date validation failed', 'error');
-                    return
-                }
-
                 //get transaction reference :20: 16x
                 const ref = getTransactionReference();
                 statement += `:20:${ref}\n`;
@@ -184,14 +175,29 @@
 
                 //generate statement line and information to owner
                 //TODO change the loop based on selected banks file format
-                for(let i = 18; i < data.length - 9; i++){
-                    //generate tag 61 Account statement
-                    const line = generateStementLine(data[i], currency);
-                    statement += `:61:${line}\n`;
+                let lastTransactionDateExcel;
+                for(let i = 18; i < data.length; i++){
+                    //only perform this if line has records
+                    if(data[i].length > 4){
+                        //generate tag 61 Account statement
+                        const line = generateStementLine(data[i], currency);
+                        statement += `:61:${line}\n`;
 
-                    //generate tag 86 for transaction description
-                    const description = data[i][3];
-                    statement += `:86:${description}\n`;
+                        //generate tag 86 for transaction description
+                        const description = data[i][3];
+                        statement += `:86:${description}\n`;
+
+                        //set last trans date to current line date
+                        lastTransactionDateExcel = data[i][0];
+                    }
+
+                }
+
+                const lastTransactionDate = moment(getJsDateFromExcel(lastTransactionDateExcel)).format('YYMMDD');
+                //validate last transaction date
+                if(!typeof(lastTransactionDate === 'number')){
+                    swal('error', 'last transaction date validation failed', 'error');
+                    return
                 }
 
                 // if closing balance matches populate tag 62 TODO check the validation
@@ -249,7 +255,6 @@
          */
 
         function getJsDateFromExcel(excelDate) {
-            console.log('logging js date as ', excelDate);
             // JavaScript dates can be constructed by passing milliseconds
             // since the Unix epoch (January 1, 1970) example: new Date(12312512312);
             // 1. Subtract number of days between Jan 1, 1900 and Jan 1, 1970, plus 1 (Google "excel leap year bug")
@@ -279,7 +284,6 @@
          */
 
         function generateAccount(nubNo) {
-            console.log(typeof(nubNo));
             if(nubNo && nubNo.length >= 10){
                 return nubNo;
             } else {
@@ -326,7 +330,7 @@
             //    ending zeroes are not shown
             if(balance && balanceDate && currency){
                 const sign = balance > 0 ? 'C' : 'D';
-                const newBalance = String(balance).replace('.', ',');
+                const newBalance = String(balance).includes('.') ? String(balance).replace('.', ',') : String(balance) + ','; // add comma at the end and ignore 00s
                 return `${sign}${balanceDate}${currency}${newBalance}`
 
             } else {
@@ -366,11 +370,11 @@
             const lastCurrL = currency.substring(2,3);
             if(arr[6]){ //deposit
                 sign = 'C';
-                amount = String(arr[6]).replace('.', ',');
+                amount = String(arr[6]).includes('.') ? String(arr[6]).replace('.', ',') : String(arr[6]) + ',';
                 //add amount to total credit for validation
             } else if(arr[5]){
                 sign = 'D';
-                amount = String(arr[5]).replace('.', ',');
+                amount = String(arr[5]).includes('.') ? String(arr[5]).replace('.', ',') : String(arr[5]) + ',';
                 //deduct amount from total credit for validation
             } else {
                 sign = '';
@@ -396,7 +400,7 @@
 // You can obviously give a direct path without use the dialog (C:/Program Files/path/myfileexample.txt)
             dialog.showSaveDialog((fileName) => {
                 if (fileName === undefined){
-                    console.log("You didn't save the file");
+                    swal("info", "You didn't save the file", "error");
                     return;
                 }
 
