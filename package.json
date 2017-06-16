@@ -1,11 +1,11 @@
 {
   "name": "erotonMt940Converter",
   "version": "1.0.0",
-  "description": "A bank statement converter from csv to mt940 for ErotonEP",
+  "description": "A bank statement converter from xlsx to mt940 for ErotonEP",
   "main": "main.js",
   "scripts": {
     "start": "electron .",
-    "clean": "rm -rf dist",
+    "clean": "rimraf dist",
     "build": "electron-packager . app --platform win32 --arch x64 --out dist/",
     "setup": "electron-installer-windows --src dist/app-win32-x64/ --config config.json",
     "final": "npm run clean && npm run build && npm run setup"
