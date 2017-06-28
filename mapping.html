@@ -1,0 +1,493 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Eroton CSV to MT940 converter</title>
+<link rel="stylesheet" href="css/main.css" />
+<link rel="stylesheet" href="css/styles.css" />
+<link rel="stylesheet" type="text/css" href="css/sweetalert.css" />
+<link rel="stylesheet" type="text/css" href="css/dataTables.min.css" />
+
+<!-- Insert this line above script imports  -->
+<script>if (typeof module === 'object') {window.module = module; module = undefined;}</script>
+
+<script src="js/jquery-3.2.1.min.js"></script>
+<script src="js/sweetalert.min.js"></script>
+<script src="js/dataTables.min.js"></script>
+
+<!-- Insert this line after script imports -->
+<script>if (window.module) module = window.module;</script>
+
+</head>
+<body>
+    <div id="homeButton">
+        <a href="index.html">Home</a>
+    </div>
+    <section id="intro" class="main style1 dark fullscreen">
+        <div class="content container 75%">
+            <input type="button" id="btn-read-file-input" value="select a .xlsx bank statement for mapping">
+            <p></p><div id="ErotonINTRO2">OR</div><p></p>
+            <div id="file-upload">
+                <p>Drop your .Xlsx bank statement here to process mapping</p>
+                <p id="path"></p>
+            </div>
+            <div id="process-button">
+                <input type="button" id="startMapping" value="Start Mapping">
+            </div>
+            <div id="bankList">
+
+            </div>
+            <input type="button" id="deleteMapping" value="Remove Mapping">
+
+        </div>
+    </section>
+    <div id="data">
+
+    </div>
+    <div id="mappingFields">
+        <form action="" id="BankMapping">
+            <fieldset>
+                <legend>Bank Statement Mapping Details</legend>
+                <fieldset id="statement">
+                    <legend>Mapping Info</legend>
+                    <div class="card-type">
+                        <label for="Name">Mapping Name</label>
+                        <input id="Name" name="mappingName" type="text" placeholder="Enter mapping name" required>
+                        <label for="Name">Account Currency</label>
+                        <input id="Currency" name="currency" type="text" placeholder="Enter currency e.g NGN, USD, EUR" required>
+
+                    </div>
+                </fieldset>
+
+                <fieldset>
+                    <legend>Account Number</legend>
+                    <div class="card-type">
+                        <label for="AccountNumberRow">Row</label>
+                        <input id="AccountNumberRow" name="AccountNumberRow" type="number" placeholder="Account Number Row" required>
+                        <label for="AccountNumberColumn">Column</label>
+                        <input id="AccountNumberColumn" name="AccountNumberColumn" type="number" placeholder="Account Number Column" required>
+                    </div>
+                </fieldset>
+                <fieldset>
+                    <legend>Opening Balance</legend>
+                    <div class="card-type">
+                        <label for="OBalanceRow">Row</label>
+                        <input id="OBalanceRow" name="OBalanceRow" type="number" placeholder="Opening Balance Row">
+                        <label for="OBalanceColumn">Column</label>
+                        <input id="OBalanceColumn" name="OBalanceColumn" type="number" placeholder="Openning Balance Column">
+                    </div>
+                </fieldset>
+                <fieldset>
+                    <legend>Closing Balance</legend>
+                    <div class="card-type">
+                        <label for="CBalanceRow">Row</label>
+                        <input id="CBalanceRow" name="CBalanceRow" type="number" placeholder="Closing Balance Row">
+                        <label for="CBalanceColumn">Column</label>
+                        <input id="CBalanceColumn" name="CBalanceColumn" type="number" placeholder="Closing Balance Column">
+                    </div>
+                </fieldset>
+                <fieldset>
+                    <legend>Closing Available Balance</legend>
+                    <div class="card-type">
+                        <label for="CABalanceRow">Row</label>
+                        <input id="CABalanceRow" name="CABalanceRow" type="number" placeholder="Closing AvailvBalance Row">
+                        <label for="CABalanceColumn">Column</label>
+                        <input id="CABalanceColumn" name="CABalanceColumn" type="number" placeholder="Closing Avail Balance Column">
+                    </div>
+                </fieldset>
+            </fieldset>
+            <fieldset id="transactions">
+                <legend>Transaction Lines Info</legend>
+                <fieldset>
+                    <legend>First Transaction Line</legend>
+                    <div class="card-type">
+                        <label for="FTLineRow">Row</label>
+                        <input id="FTLineRow" name="FTLineRow" type="number" placeholder="First Transaction Line" required>
+                    </div>
+                </fieldset>
+
+                <fieldset>
+                    <legend>Transaction Date</legend>
+                    <div class="card-type">
+                        <label for="TDateColumn">Column</label>
+                        <input id="TDateColumn" name="TDateColumn" type="number" placeholder="Transaction Date Column" required>
+                    </div>
+                </fieldset>
+
+                <fieldset>
+                    <legend>Value Date</legend>
+                    <div class="card-type">
+                        <label for="VDateColumn">Column</label>
+                        <input id="VDateColumn" name="VDateColumn" type="number" placeholder="Value Date Column" required>
+                    </div>
+                </fieldset>
+
+                <fieldset>
+                    <legend>Description</legend>
+                    <div class="card-type">
+                        <label for="Tdescription">Column</label>
+                        <input id="Tdescription" name="Tdescription" type="number" placeholder="Transaction Description" required>
+                    </div>
+                </fieldset>
+
+                <fieldset>
+                    <legend>Bank Reference</legend>
+                    <div class="card-type">
+                        <label for="Tref">Column</label>
+                        <input id="Tref" name="Tref" type="number" placeholder="Bank Reference" required>
+                    </div>
+                </fieldset>
+
+                <fieldset>
+                    <legend>TAmount Debit</legend>
+                    <div class="card-type">
+                        <label for="TAD">Column</label>
+                        <input id="TAD" name="TAD" type="number" placeholder="Transaction Amount Debit" required>
+                    </div>
+                </fieldset>
+
+                <fieldset>
+                    <legend>TAmount Credit</legend>
+                    <div class="card-type">
+                        <label for="TAC">Column</label>
+                        <input id="TAC" name="TAC" type="number" placeholder="Transaction Amount Credit" required>
+                    </div>
+                </fieldset>
+
+                <fieldset>
+                    <legend>Balance</legend>
+                    <div class="card-type">
+                        <label for="ABalance">Column</label>
+                        <input id="ABalance" name="ABalance" type="number" placeholder="Account Balance">
+                    </div>
+                </fieldset>
+            </fieldset>
+            <div id="submit">
+                <button type="submit" id="mappingForm">Save Mapping!</button>
+            </div>
+
+        </form>
+    </div>
+</body>
+
+    <script>
+        //all conversion for single account
+
+        //require dialogue for open file and save file dialogue
+        const {dialog} = require('electron').remote;
+        //require file system to read files
+        const fs = require('fs');
+        //require node xlsx
+        const xlsx = require('node-xlsx');
+        // require moment for date time processing
+        const moment = require('moment');
+        //hold selected file path in variable path
+        let path;
+        //load persistent store used to store format of multiple banks.
+        // Type 3: Persistent datastore with automatic loading
+        const Datastore = require('nedb');
+
+        const db = new Datastore({ filename: 'store/bankProps', autoload: true });
+        // find default template (ECOBANK) if not found, load from file into datastore.
+
+        //based on selected bank, choose initialString. TODO // use defualt now and check back later
+        const {initialString} = require('./config/institution').general;
+        //hold derived statement as test in variable statement
+        let statement ='';
+
+        document.getElementById("btn-read-file-input").addEventListener("click", () => {
+        dialog.showOpenDialog((FileNames) => {
+            if(FileNames === undefined){
+                swal('Nothing Selected', 'No files were selected', 'info');
+                return;
+            }
+            path = FileNames[0];
+            document.getElementById('path').innerHTML = FileNames[0];
+            showProcessButon();
+        })
+        }, false);
+
+        //event when processing button is clicked
+        document.getElementById('startMapping').addEventListener("click", () => {
+          if(path) {
+              processMapping(path);
+              //clear used variables
+              document.getElementById('process-button').style.visibility = 'hidden';
+              path = '';
+              document.getElementById('path').innerHTML = '';
+          } else {
+              swal('No File', 'Nofile Selected', 'error');
+          }
+        });
+
+        //event when delete mapping button is clicked
+        document.getElementById('deleteMapping').addEventListener("click", () => {
+            swal({
+                    title: "Delete Mapping!",
+                    text: "Enter Mapping Name:",
+                    type: "input",
+                    showCancelButton: true,
+                    closeOnConfirm: false,
+                    animation: "slide-from-top",
+                    inputPlaceholder: "Enter Mapping Name"
+                },
+                function(inputValue){
+                    if (inputValue === false) return false;
+
+                    if (inputValue === "") {
+                        swal.showInputError("You need to Enter a name as shown on the list");
+                        return false
+                    }
+
+
+                    db.remove({ name: inputValue }, {}, function (err, numRemoved) {
+                        // numRemoved = 1
+                        if(err){
+                            swal("Erro!", `Mapping ${inputValue} not found` ,"error");
+                        } else {
+                            swal("Successful!", `${numRemoved} statment mapping removed`, "success");
+                            location.reload();
+                        }
+                    });
+                });
+        });
+
+
+        const holder = document.getElementById('file-upload');
+
+        holder.ondragover = () => {
+            holder.style.background = "rgba(0,0,0,0.5)";
+            return false;
+        };
+
+        holder.ondragleave = () => {
+            holder.style.background = "";
+            return false;
+        };
+
+        holder.ondragend = () => {
+            return false;
+        };
+
+        holder.ondrop = (e) => {
+            e.preventDefault();
+
+            for (let f of e.dataTransfer.files) {
+                document.getElementById('path').innerHTML = f.path;
+                path = f.path;
+                showProcessButon();
+            }
+
+            return false;
+        };
+
+        //display all mappings
+        let bank = db.find({}, function(err, mappings){
+            for(let mapping of mappings){
+                let link = `<div class="mappings" id="${mapping.name}">${mapping.name}</div>`;
+                $('#bankList').append(link);
+            }
+        });
+
+        function processMapping(filename) {
+            try{
+                var obj = xlsx.parse(fs.readFileSync(filename));
+                if(!obj.length){
+                    swal('error', 'File failed validation checks', 'error');
+                    return
+                }
+                var numOfRecords = obj[0].data.length;
+                var data = obj[0].data;
+                if(!data.length){
+                    swal('error', 'File failed validation checks', 'error');
+                    return
+                }
+                //validate data to check if file uploaded is valid bank statement
+                //determine bank format to adopt
+
+                let html = "";
+                let columnLength = 0;
+                let rowLength = data.length;
+                html += '<table id="uploaded" class="display dataTable" cellspacing="0"><thead><tr>';
+                    //generate algorithm to process <th></th> based on no of document columns.
+                        for(let i = 0; i < rowLength; i++){
+                           columnLength = data[i].length >  columnLength ? data[i].length : columnLength ;
+                        }
+                        html += '<th>Row/Column</th>';
+                        for(let j = 0; j< columnLength; j++){
+                           html += `<th>Column ${j+1}</th>`
+                        }
+
+                        //now populate ever row from the parsed xlsx
+                html += '</tr></tfoot><tbody>';
+
+                for(let h=0; h<rowLength; h++) {
+                    html += `<tr><td> Row ${h+1 > 9 ? h + 1 : String(0) + String(h + 1)}</td>`;
+                    for (let i=0; i< columnLength; i++){
+                        html += `<td>${data[h][i] ? data[h][i] : ''}</td>`
+                    }
+                    html += '</tr>';
+                }
+                html += '</tbody></table>';
+                document.getElementById('data').innerHTML = html;
+                $('#intro').toggle();
+                $('#mappingFields').show();
+                $('.dataTable').DataTable();
+
+//                //get account currency
+//                const currency = data[9][3];
+//                if(!(typeof(currency) === 'string' && currency.length === 3)) {
+//                   // TODO //show on the UI that currency validation is passed
+//                    swal('error', 'Currency Validaton failed', 'error');
+//                    return
+//                }
+//
+//                // get opening balance
+//                const openingBalance = data[11][1];
+//                if(!typeof(openingBalance) === 'number'){
+//                    swal('error', 'Opening balance validation failed', 'error');
+//                    return
+//                }
+//
+//                //get closing balance
+//                const closingBalance = data[11][3];
+//                if(!typeof(closingBalance) === 'number'){
+//                    swal('error', 'closing balance validation failed', 'error');
+//                    return
+//                }
+//
+//                //get Effective available balance
+//                const closingAvailableBalance = data[12][3];
+//                if(!typeof(closingBalance) === 'number'){
+//                    swal('error', 'Closing available balance validation failed', 'error');
+//                    return
+//                }
+//
+//                //get first transaction date as oppening balance date
+//                const firstTransactionDateExcel = data[18][0];
+//                const firstTransactionDate = moment(getJsDateFromExcel(firstTransactionDateExcel)).format('YYMMDD');
+//                //validate first transaction date
+//                if(!typeof(firstTransactionDate === 'number')){
+//                    swal('error', 'First transaction date validation failed', 'error');
+//                    return
+//                }
+//
+//
+//                const nuban = data[8][1] ;
+//
+//
+//                const lastTransactionDate = moment(getJsDateFromExcel(lastTransactionDateExcel)).format('YYMMDD');
+//                //validate last transaction date
+//                if(!typeof(lastTransactionDate === 'number')){
+//                    swal('error', 'last transaction date validation failed', 'error');
+//                    return
+//                }
+//
+//                // if closing balance matches populate tag 62 TODO check the validation
+//                //Tag 62a – Closing Balance (Booked Funds)
+//
+//                const closingBalanceTag = getBalance(closingBalance, lastTransactionDate, currency);
+//                statement += `:62F:${closingBalanceTag}\n`;
+//
+//
+//                // get Tag 64 – Closing Available Balance (Available Funds)
+//                const closingAvailableBalanceTag = getBalance(closingAvailableBalance, lastTransactionDate, currency);
+//                statement += `:64:${closingAvailableBalanceTag}\n`;
+
+            } catch (e){
+                swal('File Error', 'File not supported', 'error');
+                console.log(e);
+            }
+        };
+
+        /**
+         *
+         * @param number
+         * @return {date} javascript date
+         *
+         */
+
+        function getJsDateFromExcel(excelDate) {
+            // JavaScript dates can be constructed by passing milliseconds
+            // since the Unix epoch (January 1, 1970) example: new Date(12312512312);
+            // 1. Subtract number of days between Jan 1, 1900 and Jan 1, 1970, plus 1 (Google "excel leap year bug")
+            // 2. Convert to milliseconds.
+            return new Date((excelDate - (25567 + 2))*86400*1000);
+
+        }
+
+        /**
+         * @param
+         * @return {date} formatted as YYMMDD
+         *
+         *
+         */
+
+        function getTransactionReference() {
+            //process Tag 20 – Transaction Reference Number 16x (6!n10!n)
+            //! means exactly n means numbers and 6/10 is length
+            let mstime = String(new Date().getTime());
+            return `${moment().format('YYMMDD')}${mstime.substring(3,13)}`;// get last 10 strings from unix time
+        }
+
+        /**
+         * @param number
+         * @return {string}
+         *
+         */
+
+
+
+
+
+        function showProcessButon(){
+            const doc = document.getElementById('process-button');
+            doc.style.visibility = 'visible';
+            $('#bankList').hide();
+            $('#deleteMapping').hide();
+        }
+
+        $("#BankMapping").submit(function(e){
+            //get all dom contents
+            //array index starts from 0 so add -1 for accurate index
+            const doc = {};
+            doc.name = $('[name="mappingName"]').val();
+            doc.currency = $('[name="currency"]').val();
+            doc.AccountNumberRow = $('[name="AccountNumberRow"]').val() - 1;
+            doc.AccountNumberColumn = $('[name="AccountNumberColumn"]').val() - 1;
+            doc.OpenningBalanceRow = $('[name="OBalanceRow"]').val()  - 1;
+            doc.OpenningBalanceColumn = $('[name="OBalanceColumn"]').val()  - 1;
+            doc.ClosingBalanceRow = $('[name="CBalanceRow"]').val()  - 1;
+            doc.ClosingBalanceColumn = $('[name="CBalanceColumn"]').val()  - 1;
+            doc.ClosingAvailableBalanceRow = $('[name="CABalanceRow"]').val()  - 1;
+            doc.ClosingAvailableBalanceColumn = $('[name="CABalanceColumn"]').val() - 1;
+            doc.FirstTransactionLineRow = $('[name="FTLineRow"]').val() - 1;
+            doc.TransactionDateColumn = $('[name="TDateColumn"]').val() - 1;
+            doc.ValueDateColumn = $('[name="VDateColumn"]').val()  - 1;
+            doc.TransactionDescription = $('[name="Tdescription"]').val() - 1;
+            doc.TransactionReference = $('[name="Tref"]').val() - 1;
+            doc.TransactionAmountDebit = $('[name="TAD"]').val() - 1;
+            doc.TransactionAmountCredit = $('[name="TAC"]').val() - 1;
+            doc.AccountBalance = $('[name="ABalance"]').val() - 1;
+            console.log(doc);
+
+            //save doc to nedb bankProps
+
+            db.insert(doc, function (err, newDoc) {   // Callback is optional
+                // newDoc is the newly inserted document, including its _id
+                // newDoc has no key called notToBeSaved since its value was undefined
+                if(err){
+                    console.log(err);
+                    swal('Error', 'Error Saving Mapping', 'error');
+                } else {
+                    console.log(newDoc);
+                    swal('Successful', `Mapping file ${doc.name} saved`, 'success');
+                    location.reload();
+                }
+
+            });
+            return false;
+        });
+
+    </script>
+</html>
