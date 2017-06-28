@@ -37,9 +37,12 @@
             <div id="bankList">
 
             </div>
-            <input type="button" id="deleteMapping" value="Remove Mapping">
 
+            <div class="content container 75%">
+                <input type="button" id="deleteMapping" value="Delete Mapping">
+            </div>
         </div>
+
     </section>
     <div id="data">
 
@@ -441,8 +444,7 @@
 
 
         function showProcessButon(){
-            const doc = document.getElementById('process-button');
-            doc.style.visibility = 'visible';
+            $('#process-button').show();
             $('#bankList').hide();
             $('#deleteMapping').hide();
         }
