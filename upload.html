@@ -216,11 +216,9 @@
 
                         //generate statement line and information to owner
                         //TODO change the loop based on selected banks file format
-                        let lastTransactionDateExcel;
-                        for(let i = doc.FirstTransactionLineRow; i < data.length; i++){
+                        let lastTransactionDateExcel = data[doc.LastTransactionLine][doc.TransactionDateColumn];
+                        for(let i = doc.FirstTransactionLineRow; i < doc.LastTransactionLine; i++){
                             //only perform this if line has records
-                            if(data[i].length >= data[doc.FirstTransactionLineRow].length){
-                                //generate tag 61 Account statement
                                 const line = generateStementLine(data[i], currency, doc);
                                 statement += `:61:${line}\n`;
 
@@ -229,15 +227,15 @@
                                 statement += `:86:${description}\n`;
 
                                 //set last trans date to current line date
-                                lastTransactionDateExcel = data[i][doc.TransactionDateColumn];
-                            }
-
                         }
 
                         const lastTransactionDate = moment(getJsDateFromExcel(lastTransactionDateExcel)).format('YYMMDD');
 
                         //validate last transaction date
                         if(typeof(lastTransactionDateExcel) !== 'number'){
+                            console.log(typeof(lastTransactionDateExcel))
+                            console.log(lastTransactionDateExcel)
+                            console.log('last transaction date is ', lastTransactionDate);
                             swal('error', 'last transaction date validation failed', 'error');
                             return
                         }
@@ -480,10 +478,11 @@
         //show bank props
         function showBankProps() {
             let bank = db.find({}, function(err, mappings){
+                let link = '';
                 for(let mapping of mappings){
-                    let link = `<div class="mappings" id="${mapping.name}">${mapping.name}</div>`;
-                    $('#bankList').html(link);
+                    link += `<div class="mappings" id="${mapping.name}">${mapping.name}</div>`;
                 }
+                $('#bankList').html(link);
             });
 
             $('#bankList').show();

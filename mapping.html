@@ -111,6 +111,14 @@
                 </fieldset>
 
                 <fieldset>
+                    <legend>Last Transaction Line</legend>
+                    <div class="card-type">
+                        <label for="LTLineRow">Row</label>
+                        <input id="LTLineRow" name="LTLineRow" type="number" placeholder="Last Transaction Line" required>
+                    </div>
+                </fieldset>
+
+                <fieldset>
                     <legend>Transaction Date</legend>
                     <div class="card-type">
                         <label for="TDateColumn">Column</label>
@@ -472,6 +480,7 @@
             doc.TransactionAmountDebit = $('[name="TAD"]').val() - 1;
             doc.TransactionAmountCredit = $('[name="TAC"]').val() - 1;
             doc.AccountBalance = $('[name="ABalance"]').val() - 1;
+            doc.LastTransactionLine = $('[name="LTLineRow"]').val() - 1;
             console.log(doc);
 
             //save doc to nedb bankProps
