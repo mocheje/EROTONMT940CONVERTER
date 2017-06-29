@@ -6,12 +6,23 @@
 <link rel="stylesheet" href="css/main.css" />
 <link rel="stylesheet" href="css/styles.css" />
 <link rel="stylesheet" type="text/css" href="css/sweetalert.css" />
+<!-- Insert this line above script imports  -->
+<script>if (typeof module === 'object') {window.module = module; module = undefined;}</script>
+
+<script src="js/jquery-3.2.1.min.js"></script>
 <script src="js/sweetalert.min.js"></script>
+
+<!-- Insert this line after script imports -->
+<script>if (window.module) module = window.module;</script>
 </head>
 <body>
+<div id="homeButton">
+    <a href="index.html">Home</a>
+</div>
     <section id="intro" class="main style1 dark fullscreen">
         <div class="content container 75%">
-            <input type="button" id="btn-read-file-input" value="select a csv bank statement to convert">
+            <p></p><div id="ErotonINTRO">Converter</div><p></p>
+            <input type="button" id="btn-read-file-input" value="select a .xlsx bank statement to convert">
             <p></p><div id="ErotonINTRO2">OR</div><p></p>
             <div id="file-upload">
                 <p>Drop your Xlsx bank statement here</p>
@@ -19,6 +30,9 @@
             </div>
             <div id="process-button">
                 <input type="button" id="startProcessing" value="Start Conversion">
+            </div>
+            <div id="bankList">
+
             </div>
         </div>
     </section>
@@ -38,6 +52,13 @@
         const moment = require('moment');
         //hold selected file path in variable path
         let path;
+        //load persistent store used to store format of multiple banks.
+        // Type 3: Persistent datastore with automatic loading
+        const Datastore = require('nedb');
+
+        const db = new Datastore({ filename: 'store/bankProps', autoload: true });
+        // find default template (ECOBANK) if not found, load from file into datastore.
+
         //based on selected bank, choose initialString. TODO // use defualt now and check back later
         const {initialString} = require('./config/institution').general;
         //hold derived statement as test in variable statement
@@ -58,11 +79,9 @@
         //event when processing button is clicked
         document.getElementById('startProcessing').addEventListener("click", () => {
           if(path) {
-              processFile(path);
+              showBankProps();
               //clear used variables
-              document.getElementById('process-button').style.visibility = 'hidden';
-              path = '';
-              document.getElementById('path').innerHTML = '';
+              $('#process-button').hide();
           } else {
               swal('No File', 'Nofile Selected', 'error');
           }
@@ -97,152 +116,179 @@
             return false;
         };
 
-        function processFile(filename) {
+        function processFile(filename, mappingName) {
             try{
                 var obj = xlsx.parse(fs.readFileSync(filename));
+                path = '';
+                document.getElementById('path').innerHTML = '';
                 if(!obj.length){
                     swal('error', 'File failed validation checks', 'error');
-                    return
+                    return;
                 }
                 var numOfRecords = obj[0].data.length;
                 var data = obj[0].data;
                 if(!data.length){
                     swal('error', 'File failed validation checks', 'error');
-                    return
+                    return;
                 }
-                //validate data to check if file uploaded is valid bank statement
-                //determine bank format to adopt
+                // get mapping props
+                let mapping = db.find({name: mappingName}, function(err, list){
+                    if(err){
+                        swal('Error', 'Error occured, please contact Admin', 'error');
+                        return;
+                    } else {
+                        //validate data to check if file uploaded is valid bank statement
+                        //determine bank format to adopt
+                        const doc = list[0];
+                        //get account currency
+                        const currency = doc.currency;
+                        console.log(currency);
+                        if(!(typeof(currency) === 'string' && currency.length === 3)) {
+                            // TODO //show on the UI that currency validation is passed
+                            $('#bankList').html('');
+                            $('#bankList').hide();
+                            swal('error', 'Currency Validaton failed', 'error');
+                            return
+                        }
 
-                //get account currency
-                const currency = data[9][3];
-                if(!(typeof(currency) === 'string' && currency.length === 3)) {
-                   // TODO //show on the UI that currency validation is passed
-                    swal('error', 'Currency Validaton failed', 'error');
-                    return
-                }
+                        // get opening balance
+                        const opbal = data[doc.OpenningBalanceRow][doc.OpenningBalanceColumn];
+                        const openingBalance = formatBalanceCell(opbal);
+                        if(typeof(openingBalance) !== 'number'){
+                            $('#bankList').html('');
+                            $('#bankList').hide();
+                            swal('error', 'Opening balance validation failed', 'error');
+                            return
+                        }
 
-                // get opening balance
-                const openingBalance = data[11][1];
-                if(!typeof(openingBalance) === 'number'){
-                    swal('error', 'Opening balance validation failed', 'error');
-                    return
-                }
+                        //get closing balance
+                        const clbal = data[doc.ClosingBalanceRow][doc.ClosingBalanceColumn];
+                        const closingBalance = formatBalanceCell(clbal);
+                        if(typeof(closingBalance) !== 'number'){
+                            $('#bankList').html('');
+                            $('#bankList').hide();
+                            swal('error', 'closing balance validation failed', 'error');
+                            return
+                        }
 
-                //get closing balance
-                const closingBalance = data[11][3];
-                if(!typeof(closingBalance) === 'number'){
-                    swal('error', 'closing balance validation failed', 'error');
-                    return
-                }
+                        //get Effective available balance
+                        const clabal = data[doc.ClosingAvailableBalanceRow][doc.ClosingAvailableBalanceColumn];
+                        const closingAvailableBalance = formatBalanceCell(clabal);
+                        if(typeof(closingAvailableBalance) !== 'number'){
+                            $('#bankList').html('');
+                            $('#bankList').hide();
+                            swal('error', 'Closing available balance validation failed', 'error');
+                            return
+                        }
 
-                //get Effective available balance
-                const closingAvailableBalance = data[12][3];
-                if(!typeof(closingBalance) === 'number'){
-                    swal('error', 'Closing available balance validation failed', 'error');
-                    return
-                }
+                        //get first transaction date as oppening balance date
+                        const firstTransactionDateExcel = data[doc.FirstTransactionLineRow][doc.TransactionDateColumn];
+                        const firstTransactionDate = moment(getJsDateFromExcel(firstTransactionDateExcel)).format('YYMMDD');
+                        //validate first transaction date
+                        if(typeof(firstTransactionDateExcel) !== 'number'){
+                            $('#bankList').html('');
+                            $('#bankList').hide();
+                            swal('error', 'First transaction date validation failed', 'error');
+                            return
+                        }
 
-                //get first transaction date as oppening balance date
-                const firstTransactionDateExcel = data[18][0];
-                const firstTransactionDate = moment(getJsDateFromExcel(firstTransactionDateExcel)).format('YYMMDD');
-                //validate first transaction date
-                if(!typeof(firstTransactionDate === 'number')){
-                    swal('error', 'First transaction date validation failed', 'error');
-                    return
-                }
-
-                //get transaction reference :20: 16x
-                const ref = getTransactionReference();
-                statement += `:20:${ref}\n`;
-
-
-                //get Tag 25 – Account Identification 35x
-                //Nuban/Alternate account number always on array position [8][1]
-                const nuban = data[8][1] ;
-                const accountNumber = generateAccount(nuban);
-                //add account number to mt940 statement
-                statement += `:25:${accountNumber}\n`;
-
-                //generate Tag 28C – Statement Number/Sequence Number
-                const statementNumber = generateStatementNumber();
-                statement += `:28C:${statementNumber}\n`;
+                        //get transaction reference :20: 16x
+                        const ref = getTransactionReference();
+                        statement += `:20:${ref}\n`;
 
 
-                //generate Tag 60a – Opening Balance whether its a depit or a credit
-                //60F ‐ initial opening balance
-                const openingBalanceTag = getBalance(openingBalance, firstTransactionDate, currency);
-                statement += `:60F:${openingBalanceTag}\n`;
+                        //get Tag 25 – Account Identification 35x
+                        //Nuban/Alternate account number
+                        const nuban = data[doc.AccountNumberRow][doc.AccountNumberColumn] ;
+                        const accountNumber = generateAccount(nuban);
+                        //add account number to mt940 statement
+                        statement += `:25:${accountNumber}\n`;
 
-                //generate statement line and information to owner
-                //TODO change the loop based on selected banks file format
-                let lastTransactionDateExcel;
-                for(let i = 18; i < data.length; i++){
-                    //only perform this if line has records
-                    if(data[i].length > 4){
-                        //generate tag 61 Account statement
-                        const line = generateStementLine(data[i], currency);
-                        statement += `:61:${line}\n`;
+                        //generate Tag 28C – Statement Number/Sequence Number
+                        const statementNumber = generateStatementNumber();
+                        statement += `:28C:${statementNumber}\n`;
 
-                        //generate tag 86 for transaction description
-                        const description = data[i][3];
-                        statement += `:86:${description}\n`;
 
-                        //set last trans date to current line date
-                        lastTransactionDateExcel = data[i][0];
+                        //generate Tag 60a – Opening Balance whether its a depit or a credit
+                        //60F ‐ initial opening balance
+                        const openingBalanceTag = getBalance(openingBalance, firstTransactionDate, currency);
+                        statement += `:60F:${openingBalanceTag}\n`;
+
+                        //generate statement line and information to owner
+                        //TODO change the loop based on selected banks file format
+                        let lastTransactionDateExcel = data[doc.LastTransactionLine][doc.TransactionDateColumn];
+                        for(let i = doc.FirstTransactionLineRow; i < doc.LastTransactionLine; i++){
+                            //only perform this if line has records
+                                const line = generateStementLine(data[i], currency, doc);
+                                statement += `:61:${line}\n`;
+
+                                //generate tag 86 for transaction description
+                                const description = data[i][doc.TransactionDescription];
+                                statement += `:86:${description}\n`;
+
+                                //set last trans date to current line date
+                        }
+
+                        const lastTransactionDate = moment(getJsDateFromExcel(lastTransactionDateExcel)).format('YYMMDD');
+
+                        //validate last transaction date
+                        if(typeof(lastTransactionDateExcel) !== 'number'){
+                            console.log(typeof(lastTransactionDateExcel))
+                            console.log(lastTransactionDateExcel)
+                            console.log('last transaction date is ', lastTransactionDate);
+                            swal('error', 'last transaction date validation failed', 'error');
+                            return
+                        }
+
+                        // if closing balance matches populate tag 62 TODO check the validation
+                        //Tag 62a – Closing Balance (Booked Funds)
+
+                        const closingBalanceTag = getBalance(closingBalance, lastTransactionDate, currency);
+                        statement += `:62F:${closingBalanceTag}\n`;
+
+
+                        // get Tag 64 – Closing Available Balance (Available Funds)
+                        const closingAvailableBalanceTag = getBalance(closingAvailableBalance, lastTransactionDate, currency);
+                        statement += `:64:${closingAvailableBalanceTag}\n`;
+
+
+                        //replace *** in statement with actual mt940 codes
+                        if(initialString){
+                            const output = initialString.replace('***', statement);
+                            swal({
+                                    title: "Select Output File?",
+                                    text: "Please Select output directory/output file name!",
+                                    type: "warning",
+                                    showCancelButton: true,
+                                    confirmButtonColor: "#DD6B55",
+                                    confirmButtonText: "Save File",
+                                    cancelButtonText: "Cancel Processing!",
+                                    closeOnConfirm: false,
+                                    closeOnCancel: false
+                                },
+                                function(isConfirm){
+                                    if (isConfirm) {
+                                        saveFile(output);
+                                        //hide process button and clear dom file path
+                                        $('#path').html('');
+                                        $('#process-button').hide();
+                                        $('#bankList').hide();
+                                    } else {
+                                        swal("File not saved", "error");
+                                    }
+                                });
+                            statement = ''; // reset statement for other file processing since statement is a global variable
+                            return
+                        } else {
+                            console.log('error getting selected banks header');
+                        }
                     }
+                });
 
-                }
-
-                const lastTransactionDate = moment(getJsDateFromExcel(lastTransactionDateExcel)).format('YYMMDD');
-                //validate last transaction date
-                if(!typeof(lastTransactionDate === 'number')){
-                    swal('error', 'last transaction date validation failed', 'error');
-                    return
-                }
-
-                // if closing balance matches populate tag 62 TODO check the validation
-                //Tag 62a – Closing Balance (Booked Funds)
-
-                const closingBalanceTag = getBalance(closingBalance, lastTransactionDate, currency);
-                statement += `:62F:${closingBalanceTag}\n`;
-
-
-                // get Tag 64 – Closing Available Balance (Available Funds)
-                const closingAvailableBalanceTag = getBalance(closingAvailableBalance, lastTransactionDate, currency);
-                statement += `:64:${closingAvailableBalanceTag}\n`;
-
-
-                //replace *** in statement with actual mt940 codes
-                if(initialString){
-                    const output = initialString.replace('***', statement);
-                    swal({
-                            title: "Select Output File?",
-                            text: "Please Select output directory/output file name!",
-                            type: "warning",
-                            showCancelButton: true,
-                            confirmButtonColor: "#DD6B55",
-                            confirmButtonText: "Save File",
-                            cancelButtonText: "Cancel Processing!",
-                            closeOnConfirm: false,
-                            closeOnCancel: false
-                        },
-                        function(isConfirm){
-                            if (isConfirm) {
-                                saveFile(output);
-                                //hide process button and clear dom file path
-                                document.getElementById('path').innerHTML = '';
-                                document.getElementById('process-button').style.visibility = "hidden"
-                            } else {
-                                swal("File not saved", "error");
-                            }
-                        });
-                    statement = ''; // reset statement for other file processing since statement is a global variable
-                    return
-                } else {
-                    console.log('error getting selected banks header');
-                }
 
             } catch (e){
+                path = '';
+                document.getElementById('path').innerHTML = '';
                 swal('File Error', 'File not supported', 'error');
             }
         };
@@ -344,7 +390,7 @@
          * @param arr statement line
          *
          */
-        function generateStementLine(arr, currency){
+        function generateStementLine(arr, currency, mapping){
             //Statement Line O This record is produced for each transaction in the
             //account statement
             //1 Value Date M 6!n Format: YYMMDD
@@ -365,31 +411,37 @@
 //            7:"Balance"
             // first check if array length is > 4 since at least 4 fields will be populated to show a valid transaction
             let sign, amount;
-            const tranDate = moment(getJsDateFromExcel(arr[0])).format('YYMMDD');
-            const valueDate = moment(getJsDateFromExcel(arr[1])).format('MMDD');
+            const tranDate = moment(getJsDateFromExcel(arr[mapping.TransactionDateColumn])).format('YYMMDD');
+            const valueDate = moment(getJsDateFromExcel(arr[mapping.ValueDateColumn])).format('MMDD');
             const lastCurrL = currency.substring(2,3);
-            if(arr[6]){ //deposit
+            if(arr[mapping.TransactionAmountCredit] && valueIsAmount(arr[mapping.TransactionAmountCredit])){ //deposit
+                console.log('amount is credit');
                 sign = 'C';
-                amount = String(arr[6]).includes('.') ? String(arr[6]).replace('.', ',') : String(arr[6]) + ',';
+                const val = String(arr[mapping.TransactionAmountCredit]).replaceAll(',','');
+                amount = val.includes('.') ? val.replace('.', ',') : val + ',';
                 //add amount to total credit for validation
-            } else if(arr[5]){
+            } else if(arr[mapping.TransactionAmountDebit] && valueIsAmount(arr[mapping.TransactionAmountDebit])){//withdrawal
+                console.log('Amount is debit')
                 sign = 'D';
-                amount = String(arr[5]).includes('.') ? String(arr[5]).replace('.', ',') : String(arr[5]) + ',';
+                const val = String(arr[mapping.TransactionAmountDebit]).replaceAll(',','');
+                amount = val.includes('.') ? val.replace('.', ',') : val + ',';
                 //deduct amount from total credit for validation
             } else {
+                console.log('amount could not be determined');
                 sign = '';
                 amount = ''
             }
-            const transactionType = mapDescriptionToSwiftTCodes(arr[3]);
-            const customerReference = 'NONREF'; //no reference specified in template
-            const bankReference = arr[4];
+
+            const transactionType = mapDescriptionToSwiftTCodes(arr[mapping.TransactionDescription]);
+            const customerReference = 'ONREF'; //no reference specified in template
+            const bankReference = arr[mapping.TransactionReference];
 
             return `${tranDate}${valueDate}${sign}${lastCurrL}${amount}${transactionType}${customerReference}//${bankReference}`;
 
         }
 
         function mapDescriptionToSwiftTCodes(description){
-            if(description.toUpperCase().includes('TRANSFER')){
+            if(description && description.toUpperCase().includes('TRANSFER')){
                 return 'NTRF'
             } else {
                 return 'NCLR'
@@ -398,7 +450,12 @@
 
         function saveFile(content){
 // You can obviously give a direct path without use the dialog (C:/Program Files/path/myfileexample.txt)
-            dialog.showSaveDialog((fileName) => {
+            dialog.showSaveDialog({
+                filters: [{
+                    name: 'MT940 TXT',
+                    extensions: ['txt']
+                }]
+            }, (fileName) => {
                 if (fileName === undefined){
                     swal("info", "You didn't save the file", "error");
                     return;
@@ -416,9 +473,58 @@
         }
 
         function showProcessButon(){
-            const doc = document.getElementById('process-button');
-            doc.style.visibility = 'visible';
+            $('#process-button').show();
         }
 
+        //show bank props
+        function showBankProps() {
+            let bank = db.find({}, function(err, mappings){
+                let link = '';
+                for(let mapping of mappings){
+                    link += `<div class="mappings" id="${mapping.name}">${mapping.name}</div>`;
+                }
+                $('#bankList').html(link);
+            });
+
+            $('#bankList').show();
+        }
+
+        $('#bankList').on('click', '.mappings', function(e) {
+            const name = e.target.id;
+            if(name) {
+                processFile(path, name);
+            }
+        });
+
+        function formatBalanceCell(attr){
+            if(typeof(attr) === 'number'){
+                return attr;
+            } else if(typeof(attr) === 'string') {
+               const num = Number(attr.replaceAll(',', ''))
+                return num;
+            } else {
+                return attr;
+            }
+        }
+
+        function valueIsAmount(num) {
+            if(num && typeof(num) === 'number' && Number(num) !== 0 && !isNaN(Number(num))){
+                return true;
+            } else if(typeof(num) === 'string') {
+                const value = num.replaceAll(',','');
+                if(typeof(Number(value)) === 'number' && (Number(value) !== 0 && !isNaN(Number(value)))){
+                    return true;
+                } else{
+                    return false;
+                }
+            } else {
+                return false;
+            }
+        }
+
+        String.prototype.replaceAll = function(search, replacement) {
+            var target = this;
+            return target.replace(new RegExp(search, 'g'), replacement);
+        };
     </script>
 </html>
