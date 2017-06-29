@@ -451,7 +451,12 @@
 
         function saveFile(content){
 // You can obviously give a direct path without use the dialog (C:/Program Files/path/myfileexample.txt)
-            dialog.showSaveDialog((fileName) => {
+            dialog.showSaveDialog({
+                filters: [{
+                    name: 'MT940 TXT',
+                    extensions: ['txt']
+                }]
+            }, (fileName) => {
                 if (fileName === undefined){
                     swal("info", "You didn't save the file", "error");
                     return;
@@ -477,7 +482,7 @@
             let bank = db.find({}, function(err, mappings){
                 for(let mapping of mappings){
                     let link = `<div class="mappings" id="${mapping.name}">${mapping.name}</div>`;
-                    $('#bankList').append(link);
+                    $('#bankList').html(link);
                 }
             });
 
