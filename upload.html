@@ -21,6 +21,7 @@
 </div>
     <section id="intro" class="main style1 dark fullscreen">
         <div class="content container 75%">
+            <p></p><div id="ErotonINTRO">Converter</div><p></p>
             <input type="button" id="btn-read-file-input" value="select a .xlsx bank statement to convert">
             <p></p><div id="ErotonINTRO2">OR</div><p></p>
             <div id="file-upload">
@@ -151,7 +152,8 @@
                         }
 
                         // get opening balance
-                        const openingBalance = data[doc.OpenningBalanceRow][doc.OpenningBalanceColumn];
+                        const opbal = data[doc.OpenningBalanceRow][doc.OpenningBalanceColumn];
+                        const openingBalance = formatBalanceCell(opbal);
                         if(typeof(openingBalance) !== 'number'){
                             $('#bankList').html('');
                             $('#bankList').hide();
@@ -160,7 +162,8 @@
                         }
 
                         //get closing balance
-                        const closingBalance = data[doc.ClosingBalanceRow][doc.ClosingBalanceColumn];
+                        const clbal = data[doc.ClosingBalanceRow][doc.ClosingBalanceColumn];
+                        const closingBalance = formatBalanceCell(clbal);
                         if(typeof(closingBalance) !== 'number'){
                             $('#bankList').html('');
                             $('#bankList').hide();
@@ -169,8 +172,9 @@
                         }
 
                         //get Effective available balance
-                        const closingAvailableBalance = data[doc.ClosingAvailableBalanceRow][doc.ClosingAvailableBalanceColumn];
-                        if(typeof(closingBalance) !== 'number'){
+                        const clabal = data[doc.ClosingAvailableBalanceRow][doc.ClosingAvailableBalanceColumn];
+                        const closingAvailableBalance = formatBalanceCell(clabal);
+                        if(typeof(closingAvailableBalance) !== 'number'){
                             $('#bankList').html('');
                             $('#bankList').hide();
                             swal('error', 'Closing available balance validation failed', 'error');
@@ -194,7 +198,7 @@
 
 
                         //get Tag 25 – Account Identification 35x
-                        //Nuban/Alternate account number always on array position [8][1]
+                        //Nuban/Alternate account number
                         const nuban = data[doc.AccountNumberRow][doc.AccountNumberColumn] ;
                         const accountNumber = generateAccount(nuban);
                         //add account number to mt940 statement
@@ -215,7 +219,7 @@
                         let lastTransactionDateExcel;
                         for(let i = doc.FirstTransactionLineRow; i < data.length; i++){
                             //only perform this if line has records
-                            if(data[i].length > 4){
+                            if(data[i].length >= data[doc.FirstTransactionLineRow].length){
                                 //generate tag 61 Account statement
                                 const line = generateStementLine(data[i], currency, doc);
                                 statement += `:61:${line}\n`;
@@ -231,6 +235,7 @@
                         }
 
                         const lastTransactionDate = moment(getJsDateFromExcel(lastTransactionDateExcel)).format('YYMMDD');
+
                         //validate last transaction date
                         if(typeof(lastTransactionDateExcel) !== 'number'){
                             swal('error', 'last transaction date validation failed', 'error');
@@ -411,15 +416,20 @@
             const tranDate = moment(getJsDateFromExcel(arr[mapping.TransactionDateColumn])).format('YYMMDD');
             const valueDate = moment(getJsDateFromExcel(arr[mapping.ValueDateColumn])).format('MMDD');
             const lastCurrL = currency.substring(2,3);
-            if(arr[mapping.TransactionAmountCredit]){ //deposit
+            if(arr[mapping.TransactionAmountCredit] && valueIsAmount(arr[mapping.TransactionAmountCredit])){ //deposit
+                console.log('amount is credit');
                 sign = 'C';
-                amount = String(arr[mapping.TransactionAmountCredit]).includes('.') ? String(arr[mapping.TransactionAmountCredit]).replace('.', ',') : String(arr[mapping.TransactionAmountCredit]) + ',';
+                const val = String(arr[mapping.TransactionAmountCredit]).replaceAll(',','');
+                amount = val.includes('.') ? val.replace('.', ',') : val + ',';
                 //add amount to total credit for validation
-            } else if(arr[mapping.TransactionAmountDebit]){
+            } else if(arr[mapping.TransactionAmountDebit] && valueIsAmount(arr[mapping.TransactionAmountDebit])){//withdrawal
+                console.log('Amount is debit')
                 sign = 'D';
-                amount = String(arr[mapping.TransactionAmountDebit]).includes('.') ? String(arr[mapping.TransactionAmountDebit]).replace('.', ',') : String(arr[mapping.TransactionAmountDebit]) + ',';
+                const val = String(arr[mapping.TransactionAmountDebit]).replaceAll(',','');
+                amount = val.includes('.') ? val.replace('.', ',') : val + ',';
                 //deduct amount from total credit for validation
             } else {
+                console.log('amount could not be determined');
                 sign = '';
                 amount = ''
             }
@@ -432,7 +442,7 @@
         }
 
         function mapDescriptionToSwiftTCodes(description){
-            if(description.toUpperCase().includes('TRANSFER')){
+            if(description && description.toUpperCase().includes('TRANSFER')){
                 return 'NTRF'
             } else {
                 return 'NCLR'
@@ -481,5 +491,35 @@
             }
         });
 
+        function formatBalanceCell(attr){
+            if(typeof(attr) === 'number'){
+                return attr;
+            } else if(typeof(attr) === 'string') {
+               const num = Number(attr.replaceAll(',', ''))
+                return num;
+            } else {
+                return attr;
+            }
+        }
+
+        function valueIsAmount(num) {
+            if(num && typeof(num) === 'number' && Number(num) !== 0 && !isNaN(Number(num))){
+                return true;
+            } else if(typeof(num) === 'string') {
+                const value = num.replaceAll(',','');
+                if(typeof(Number(value)) === 'number' && (Number(value) !== 0 && !isNaN(Number(value)))){
+                    return true;
+                } else{
+                    return false;
+                }
+            } else {
+                return false;
+            }
+        }
+
+        String.prototype.replaceAll = function(search, replacement) {
+            var target = this;
+            return target.replace(new RegExp(search, 'g'), replacement);
+        };
     </script>
 </html>
