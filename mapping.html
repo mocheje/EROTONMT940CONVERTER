@@ -334,7 +334,8 @@
                 html += '</tr></tfoot><tbody>';
 
                 for(let h=0; h<rowLength; h++) {
-                    html += `<tr><td> Row ${h+1 > 9 ? h + 1 : String(0) + String(h + 1)}</td>`;
+                    const num = h + 1;
+                    html += `<tr><td> Row ${pad(num, 4)}</td>`;
                     for (let i=0; i< columnLength; i++){
                         html += `<td>${data[h][i] ? data[h][i] : ''}</td>`
                     }
@@ -500,6 +501,11 @@
             });
             return false;
         });
+
+        function pad(num, size) {
+            var s = "000000000" + num;
+            return s.substr(s.length-size);
+        }
 
     </script>
 </html>
