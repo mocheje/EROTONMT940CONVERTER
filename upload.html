@@ -300,6 +300,7 @@
          */
 
         function getJsDateFromExcel(excelDate, dateFormat) {
+            console.log('type of excel date before condition is ', typeof(excelDate));
             // JavaScript dates can be constructed by passing milliseconds
             // since the Unix epoch (January 1, 1970) example: new Date(12312512312);
             // 1. Subtract number of days between Jan 1, 1900 and Jan 1, 1970, plus 1 (Google "excel leap year bug")
@@ -422,8 +423,8 @@
 //            7:"Balance"
             // first check if array length is > 4 since at least 4 fields will be populated to show a valid transaction
             let sign, amount;
-            const tranDate = moment(getJsDateFromExcel(arr[mapping.TransactionDateColumn])).format('YYMMDD');
-            const valueDate = moment(getJsDateFromExcel(arr[mapping.ValueDateColumn])).format('MMDD');
+            const tranDate = moment(getJsDateFromExcel(arr[mapping.TransactionDateColumn], mapping.dateFormat)).format('YYMMDD');
+            const valueDate = moment(getJsDateFromExcel(arr[mapping.ValueDateColumn], mapping.dateFormat)).format('MMDD');
             const lastCurrL = currency.substring(2,3);
             if(arr[mapping.TransactionAmountCredit] && valueIsAmount(arr[mapping.TransactionAmountCredit])){ //deposit
                 console.log('amount is credit');
