@@ -300,7 +300,6 @@
          */
 
         function getJsDateFromExcel(excelDate, dateFormat) {
-            console.log('type of excel date before condition is ', typeof(excelDate));
             // JavaScript dates can be constructed by passing milliseconds
             // since the Unix epoch (January 1, 1970) example: new Date(12312512312);
             // 1. Subtract number of days between Jan 1, 1900 and Jan 1, 1970, plus 1 (Google "excel leap year bug")
@@ -310,11 +309,6 @@
                 return new Date((excelDate - (25567 + 2))*86400*1000);
             } else {
                 //format date using specified date format
-                console.log('date format is ', dateFormat);
-                console.log('and type of date format is ', typeof(dateFormat));
-                console.log('date is ', excelDate);
-                console.log('and type of date is ', typeof(excelDate));
-                console.log('got here and date is ', moment(excelDate, dateFormat));
                 return moment(excelDate, dateFormat);
             }
 
@@ -427,13 +421,11 @@
             const valueDate = moment(getJsDateFromExcel(arr[mapping.ValueDateColumn], mapping.dateFormat)).format('MMDD');
             const lastCurrL = currency.substring(2,3);
             if(arr[mapping.TransactionAmountCredit] && valueIsAmount(arr[mapping.TransactionAmountCredit])){ //deposit
-                console.log('amount is credit');
                 sign = 'C';
                 const val = String(arr[mapping.TransactionAmountCredit]).replaceAll(',','');
                 amount = val.includes('.') ? val.replace('.', ',') : val + ',';
                 //add amount to total credit for validation
             } else if(arr[mapping.TransactionAmountDebit] && valueIsAmount(arr[mapping.TransactionAmountDebit])){//withdrawal
-                console.log('Amount is debit')
                 sign = 'D';
                 const val = String(arr[mapping.TransactionAmountDebit]).replaceAll(',','');
                 amount = val.includes('.') ? val.replace('.', ',') : val + ',';
