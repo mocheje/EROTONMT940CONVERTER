@@ -59,7 +59,8 @@
                         <input id="Name" name="mappingName" type="text" placeholder="Enter mapping name" required>
                         <label for="Name">Account Currency</label>
                         <input id="Currency" name="currency" type="text" placeholder="Enter currency e.g NGN, USD, EUR" required>
-
+                        <label for="dateFormat">Account Currency</label>
+                        <input id="dateFormat" name="dateFormat" type="text" placeholder="Enter date format e.g DD/MM/YYYY" required>
                     </div>
                 </fieldset>
 
@@ -465,6 +466,7 @@
             const doc = {};
             doc.name = $('[name="mappingName"]').val();
             doc.currency = $('[name="currency"]').val();
+            doc.dateFormat = $('[name="dateFormat"]').val();
             doc.AccountNumberRow = $('[name="AccountNumberRow"]').val() - 1;
             doc.AccountNumberColumn = $('[name="AccountNumberColumn"]').val() - 1;
             doc.OpenningBalanceRow = $('[name="OBalanceRow"]').val()  - 1;

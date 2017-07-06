@@ -183,9 +183,9 @@
 
                         //get first transaction date as oppening balance date
                         const firstTransactionDateExcel = data[doc.FirstTransactionLineRow][doc.TransactionDateColumn];
-                        const firstTransactionDate = moment(getJsDateFromExcel(firstTransactionDateExcel)).format('YYMMDD');
+                        const firstTransactionDate = moment(getJsDateFromExcel(firstTransactionDateExcel, doc.dateFormat)).format('YYMMDD');
                         //validate first transaction date
-                        if(typeof(firstTransactionDateExcel) !== 'number'){
+                        if(firstTransactionDate.length !== 6){
                             $('#bankList').html('');
                             $('#bankList').hide();
                             swal('error', 'First transaction date validation failed', 'error');
@@ -229,13 +229,12 @@
                                 //set last trans date to current line date
                         }
 
-                        const lastTransactionDate = moment(getJsDateFromExcel(lastTransactionDateExcel)).format('YYMMDD');
+                        const lastTransactionDate = moment(getJsDateFromExcel(lastTransactionDateExcel, doc.dateFormat)).format('YYMMDD');
 
                         //validate last transaction date
-                        if(typeof(lastTransactionDateExcel) !== 'number'){
-                            console.log(typeof(lastTransactionDateExcel))
-                            console.log(lastTransactionDateExcel)
-                            console.log('last transaction date is ', lastTransactionDate);
+                        if(lastTransactionDate.length !== 6){
+                            $('#bankList').html('');
+                            $('#bankList').hide();
                             swal('error', 'last transaction date validation failed', 'error');
                             return
                         }
@@ -300,12 +299,19 @@
          *
          */
 
-        function getJsDateFromExcel(excelDate) {
+        function getJsDateFromExcel(excelDate, dateFormat) {
             // JavaScript dates can be constructed by passing milliseconds
             // since the Unix epoch (January 1, 1970) example: new Date(12312512312);
             // 1. Subtract number of days between Jan 1, 1900 and Jan 1, 1970, plus 1 (Google "excel leap year bug")
             // 2. Convert to milliseconds.
-            return new Date((excelDate - (25567 + 2))*86400*1000);
+            if(typeof(excelDate === 'number')){
+                //able to parse secel date as date
+                return new Date((excelDate - (25567 + 2))*86400*1000);
+            } else {
+                //format date using specified date format
+                return moment(excelDate, dateFormat);
+            }
+
 
         }
 
