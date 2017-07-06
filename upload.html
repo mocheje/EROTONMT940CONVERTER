@@ -230,7 +230,7 @@
                         }
 
                         const lastTransactionDate = moment(getJsDateFromExcel(lastTransactionDateExcel, doc.dateFormat)).format('YYMMDD');
-C                       console.log(lastTransactionDate, 'was returned');
+                        console.log(lastTransactionDate, 'was returned');
                         //validate last transaction date
                         if(lastTransactionDate.length !== 6){
                             $('#bankList').html('');
