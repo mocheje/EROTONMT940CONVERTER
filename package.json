@@ -22,7 +22,7 @@
   "author": "Michael Ocheje",
   "license": "ISC",
   "devDependencies": {
-    "electron": "~1.6.2",
+    "electron": "~7.2.4",
     "electron-installer-windows": "^0.2.0"
   },
   "dependencies": {
